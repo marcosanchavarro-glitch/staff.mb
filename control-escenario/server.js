@@ -582,9 +582,15 @@ function getConnectedCounts() {
   return counts;
 }
 
-function getConnectionInfo() {
+function getConnectionInfo(headers = {}) {
   if (process.env.PUBLIC_URL) {
     return { tabletUrls: [`${process.env.PUBLIC_URL.replace(/\/$/, '')}/pantalla`] };
+  }
+  const forwardedHost = String(headers['x-forwarded-host'] || headers.host || '').split(',')[0].trim();
+  if (forwardedHost) {
+    const forwardedProtocol = String(headers['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProtocol || (isProduction ? 'https' : 'http');
+    return { tabletUrls: [`${protocol}://${forwardedHost}/pantalla`] };
   }
   const addresses = [];
   Object.values(networkInterfaces()).flat().forEach((address) => {
@@ -756,7 +762,7 @@ io.on('connection', (socket) => {
   socket.emit('auth:info', { role: socket.data.auth.role, name: socket.data.auth.name });
   socket.emit('config:update', getConfigForRole(socket.data.auth.role));
   socket.emit('state:update', getPublicState());
-  socket.emit('connection:info', getConnectionInfo());
+  socket.emit('connection:info', getConnectionInfo(socket.request.headers));
   if (socket.data.auth.role === 'admin') socket.emit('connections:update', getConnectedCounts());
   broadcastConnections();
   socket.on('disconnect', broadcastConnections);

@@ -48,22 +48,20 @@ Consultar `.env.example`:
 - `ADMIN_ACCESS_CODE`: credencial ADMIN para la primera ejecución.
 - `MULTIMEDIA_ACCESS_CODE`: credencial global MULTIMEDIA para la primera ejecución.
 - `ESCENARIO_ACCESS_CODE`: credencial global ESCENARIO para la primera ejecución.
-- `DATABASE_PATH`: ubicación del archivo SQLite. En Render debe apuntar al disco persistente.
-- `PUBLIC_URL`: URL HTTPS pública usada para mostrar el enlace de la tablet.
+- `DATABASE_PATH`: ubicación del archivo SQLite. El Blueprint gratuito utiliza `/tmp/staff-mb.sqlite`.
+- `PUBLIC_URL`: URL HTTPS pública opcional; Render se detecta automáticamente.
 - `NODE_ENV=production`: activa cookies `Secure` y confianza en el proxy de Render.
 - `PORT`: Render la define automáticamente.
 
-## Render y SQLite
+## Render gratuito y SQLite
 
-El archivo `render.yaml` configura un servicio pago `starter`, el health check y un disco persistente montado en `/var/data`. Antes del deploy:
+El archivo `render.yaml` configura un servicio gratuito y el health check. Antes del deploy:
 
 1. Crear el Blueprint desde el repositorio o configurar un Web Service equivalente.
 2. Definir `ADMIN_ACCESS_CODE`, `MULTIMEDIA_ACCESS_CODE` y `ESCENARIO_ACCESS_CODE` como secretos para la primera ejecución.
-3. Definir `PUBLIC_URL` con la URL final, por ejemplo `https://staff-mb.onrender.com`.
-4. Confirmar que el disco persistente esté montado en `/var/data`.
-5. Mantener `DATABASE_PATH=/var/data/staff-mb.sqlite`.
+3. Mantener `DATABASE_PATH=/tmp/staff-mb.sqlite`.
 
-Sin un disco persistente, Render puede perder SQLite durante un reinicio o un nuevo deploy. Los planes que no admiten Persistent Disk no son apropiados para conservar los cultos y las credenciales de producción.
+El plan gratuito no ofrece disco persistente. Render puede reiniciar SQLite durante un nuevo deploy o al reemplazar la instancia; en ese caso se recupera la configuración inicial y se usan nuevamente las credenciales definidas en las variables de entorno.
 
 ## Prueba con varios dispositivos
 

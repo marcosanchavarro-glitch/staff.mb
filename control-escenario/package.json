@@ -1,6 +1,6 @@
 {
   "name": "staff-mb",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "STAFF MB — sesiones y control de escenario en tiempo real",
   "scripts": { "start": "node server.js" },
