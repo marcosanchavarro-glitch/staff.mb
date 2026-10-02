@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: staff-mb
+    runtime: node
+    plan: starter
+    rootDir: control-escenario
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_ACCESS_CODE
+        sync: false
+      - key: MULTIMEDIA_ACCESS_CODE
+        sync: false
+      - key: ESCENARIO_ACCESS_CODE
+        sync: false
+      - key: DATABASE_PATH
+        value: /var/data/staff-mb.sqlite
+      - key: PUBLIC_URL
+        sync: false
+    disk:
+      name: staff-mb-data
+      mountPath: /var/data
+      sizeGB: 1

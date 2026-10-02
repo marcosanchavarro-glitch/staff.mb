@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Administración · STAFF MB</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="control-page">
+  <div class="control-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">≋</span><div><h1>STAFF MB</h1><p>Administración y control</p></div></div>
+      <div class="topbar-actions"><a class="nav-link" href="/multimedia">MODO MULTIMEDIA</a><div class="tablet-address"><span>TABLET · PANTALLA</span><code id="tablet-url">Buscando dirección de red…</code></div><div class="user-chip"><span id="auth-name">ADMIN</span><button id="logout" type="button">SALIR</button></div></div>
+    </header>
+
+    <main>
+      <div class="preview-notice" id="connection-status"><span class="status-dot" aria-hidden="true"></span><p>CONECTANDO <span>Esperando conexión con STAFF MB.</span></p></div>
+
+      <section class="session-panel panel" aria-labelledby="session-title">
+        <div class="panel-heading"><h2 id="session-title">SESIÓN / CULTO</h2><span class="subtle" id="session-status">SIN SESIÓN ABIERTA</span></div>
+        <div class="session-controls">
+          <select id="session-select" aria-label="Sesiones disponibles"></select>
+          <input id="session-name" maxlength="60" autocomplete="off" placeholder="Nombre de la sesión">
+          <button class="primary" id="session-open">ABRIR</button>
+          <button id="session-create">CREAR</button>
+          <button id="session-rename">GUARDAR NOMBRE</button>
+          <button class="danger-button" id="session-delete">ELIMINAR</button>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section class="timer-panel" aria-labelledby="current-title">
+          <div class="panel-heading"><h2 id="current-title">REUNIÓN EN VIVO</h2><span class="subtle" id="timer-type-label">CRONÓMETRO</span></div>
+          <p class="live-session" id="live-session">SIN SESIÓN</p>
+          <p class="current-section" id="current-section" aria-live="polite">SIN SECCIÓN</p>
+          <p class="responsible-line" id="current-responsible">Encargado: —</p>
+          <div class="timer-block"><p class="timer" id="control-timer">00:00</p><p class="eyebrow" id="timer-caption">TIEMPO TRANSCURRIDO</p></div>
+          <div class="timer-actions">
+            <button class="primary" id="timer-start">INICIAR</button>
+            <button id="timer-pause" disabled>PAUSAR</button>
+            <button class="primary" id="timer-resume" disabled>CONTINUAR</button>
+            <button id="timer-reset" disabled>REINICIAR</button>
+          </div>
+          <div class="timer-adjust" id="timer-adjust" hidden>
+            <button id="timer-minus">−1 MIN</button>
+            <button id="timer-plus">+1 MIN</button>
+          </div>
+          <div class="meeting-navigation">
+            <button id="section-previous">← ANTERIOR</button>
+            <div><span class="eyebrow">PRÓXIMA</span><strong id="next-section">—</strong><small id="next-responsible">Encargado: —</small></div>
+            <button id="section-next">SIGUIENTE →</button>
+          </div>
+          <button class="wide-button manual-next-button" id="show-next-section">MOSTRAR PRÓXIMA</button>
+          <div class="monitor-message"><span class="eyebrow">MENSAJE EN PANTALLA</span><p class="is-empty" id="current-message">SIN MENSAJE ACTIVO</p></div>
+        </section>
+
+        <section class="sections-panel" aria-labelledby="sections-title">
+          <div class="panel-heading"><h2 id="sections-title">ORDEN DE LA SESIÓN</h2><span class="subtle">↑ / ↓ PARA ORDENAR</span></div>
+          <div class="section-list editable-list" id="section-list"></div>
+          <button class="wide-button" id="section-new">+ NUEVA SECCIÓN</button>
+        </section>
+      </div>
+
+      <section class="editor-panel panel" aria-labelledby="section-editor-title">
+        <div class="panel-heading"><h2 id="section-editor-title">EDITAR SECCIÓN</h2><span class="subtle" id="section-editor-mode">NUEVA</span></div>
+        <form id="section-form" class="settings-form">
+          <input id="section-id" type="hidden">
+          <label class="field"><span>Nombre</span><input id="section-name" maxlength="60" required placeholder="PRÉDICA"></label>
+          <label class="field"><span>Tipo de tiempo</span><select id="section-timer-type"><option value="stopwatch">Cronómetro</option><option value="timer">Temporizador</option></select></label>
+          <label class="field" id="duration-field"><span>Duración (minutos)</span><input id="section-duration" type="number" min="1" max="999" value="40"></label>
+          <label class="field color-field"><span>Color identificador</span><input id="section-color" type="color" value="#bbabef"></label>
+          <label class="field"><span>Encargado (opcional)</span><input id="section-responsible" maxlength="60" placeholder="Marcos"></label>
+          <div class="check-group">
+            <label><input id="section-show-name" type="checkbox" checked> Mostrar nombre</label>
+            <label><input id="section-show-time" type="checkbox" checked> Mostrar tiempo</label>
+            <label><input id="section-show-clock" type="checkbox" checked> Mostrar hora</label>
+          </div>
+          <div class="notice-settings">
+            <label><input id="section-notify-next" type="checkbox"> Avisar próxima sección</label>
+            <label class="field"><span id="notify-minutes-label">Avisar después de (minutos)</span><input id="section-notify-minutes" type="number" min="1" max="999" value="25" disabled></label>
+          </div>
+          <div class="form-actions"><button class="primary" type="submit">GUARDAR SECCIÓN</button><button id="section-cancel" type="button">LIMPIAR</button></div>
+        </form>
+      </section>
+
+      <section class="message-panel" aria-labelledby="message-title">
+        <div class="panel-heading"><h2 id="message-title">MENSAJE AL ESCENARIO</h2><span class="subtle">TEXTO Y COLOR</span></div>
+        <form class="message-entry" id="message-form">
+          <label class="field message-input"><span>Mensaje personalizado</span><input id="message" type="text" maxlength="160" autocomplete="off" placeholder="Escribí un mensaje para el escenario…"></label>
+          <label class="field color-field"><span>Color</span><input id="message-color" type="color" value="#bbabef"></label>
+          <button class="primary" type="submit">ENVIAR</button>
+          <button id="message-clear" type="button" disabled>BORRAR MENSAJE</button>
+        </form>
+        <div class="quick-messages"><span class="eyebrow">MENSAJES RÁPIDOS</span><div id="quick-message-buttons"></div></div>
+      </section>
+
+      <div class="configuration-grid">
+        <details class="config-panel panel">
+          <summary>CONFIGURAR MENSAJES RÁPIDOS</summary>
+          <form id="quick-message-form" class="compact-form">
+            <input id="quick-message-id" type="hidden">
+            <label class="field"><span>Mensaje rápido</span><select id="quick-message-select"></select></label>
+            <label class="field"><span>Texto</span><input id="quick-message-text" maxlength="80" required></label>
+            <label class="field color-field"><span>Color</span><input id="quick-message-color" type="color" value="#bbabef"></label>
+            <div class="form-actions"><button class="primary" type="submit">GUARDAR</button><button id="quick-message-new" type="button">NUEVO</button><button class="danger-button" id="quick-message-delete" type="button">ELIMINAR</button></div>
+          </form>
+        </details>
+
+        <details class="config-panel panel">
+          <summary>APARIENCIA DE /PANTALLA</summary>
+          <form id="display-settings-form" class="compact-form">
+            <label class="field color-field"><span>Fondo</span><input id="background-color" type="color" value="#080809"></label>
+            <label class="field color-field"><span>Acento</span><input id="accent-color" type="color" value="#bbabef"></label>
+            <label class="field"><span>Tamaño de sección</span><select id="section-size"><option value="small">Pequeño</option><option value="normal">Normal</option><option value="large">Grande</option></select></label>
+            <label class="field"><span>Tamaño del tiempo</span><select id="timer-size"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label>
+            <label class="field"><span>Tamaño de mensajes</span><select id="message-size"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label>
+            <label class="field"><span>Posición de mensajes</span><select id="message-position"><option value="bottom">Inferior</option><option value="center">Centro</option></select></label>
+            <label class="field"><span>Duración de avisos</span><select id="notice-duration"><option value="5">5 segundos</option><option value="6">6 segundos</option><option value="7">7 segundos</option><option value="8">8 segundos</option></select></label>
+            <label class="field"><span>Animaciones</span><select id="animation-style"><option value="subtle">Suaves</option><option value="none">Sin animación</option></select></label>
+            <div class="check-group"><label><input id="show-brand" type="checkbox" checked> Mostrar STAFF MB</label><label><input id="show-global-clock" type="checkbox" checked> Mostrar hora real</label><label><input id="show-responsible" type="checkbox" checked> Mostrar encargado</label><label><input id="show-next-section" type="checkbox" checked> Mostrar próxima sección</label></div>
+            <button class="primary" type="submit">GUARDAR APARIENCIA</button>
+          </form>
+        </details>
+      </div>
+
+      <section class="access-management panel" id="accesses" aria-labelledby="access-title">
+        <div class="panel-heading"><h2 id="access-title">ACCESOS</h2><span class="subtle">CREDENCIALES GLOBALES</span></div>
+        <div class="connected-summary" aria-label="Dispositivos conectados">
+          <span>ADMIN <strong id="connected-admin">0</strong></span>
+          <span>MULTIMEDIA <strong id="connected-multimedia">0</strong></span>
+          <span>ESCENARIO <strong id="connected-escenario">0</strong></span>
+        </div>
+        <div class="credential-grid">
+          <article class="credential-card">
+            <div><span class="credential-role">ADMIN</span><strong>••••••••</strong><p>Acceso completo y configuración.</p></div>
+            <form class="credential-form" data-role="admin">
+              <label class="field"><span>Nueva contraseña</span><input name="credential" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+              <label class="field"><span>Confirmar contraseña</span><input name="confirmation" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+              <button class="primary" type="submit">GUARDAR CONTRASEÑA</button>
+              <p class="credential-status" role="status"></p>
+            </form>
+          </article>
+          <article class="credential-card">
+            <div><span class="credential-role">MULTIMEDIA</span><strong>••••••••</strong><p>Control operativo desde uno o más dispositivos.</p></div>
+            <form class="credential-form" data-role="multimedia">
+              <label class="field"><span>Nuevo código</span><input name="credential" type="password" minlength="4" maxlength="128" autocomplete="new-password" required></label>
+              <label class="field"><span>Confirmar código</span><input name="confirmation" type="password" minlength="4" maxlength="128" autocomplete="new-password" required></label>
+              <button class="primary" type="submit">GUARDAR CÓDIGO</button>
+              <button class="danger-button close-role-sessions" type="button" data-role="multimedia">CERRAR TODAS LAS SESIONES</button>
+              <p class="credential-status" role="status"></p>
+            </form>
+          </article>
+          <article class="credential-card">
+            <div><span class="credential-role">ESCENARIO</span><strong>••••••••</strong><p>Vista de tablet o pantalla de escenario.</p></div>
+            <form class="credential-form" data-role="escenario">
+              <label class="field"><span>Nuevo código</span><input name="credential" type="password" minlength="4" maxlength="128" autocomplete="new-password" required></label>
+              <label class="field"><span>Confirmar código</span><input name="confirmation" type="password" minlength="4" maxlength="128" autocomplete="new-password" required></label>
+              <button class="primary" type="submit">GUARDAR CÓDIGO</button>
+              <button class="danger-button close-role-sessions" type="button" data-role="escenario">CERRAR TODAS LAS SESIONES</button>
+              <p class="credential-status" role="status"></p>
+            </form>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="control-footer"><span>STAFF MB · ADMIN</span><span>Acceso protegido · Estado sincronizado</span></footer>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/control.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Acceso · STAFF MB</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="access-page">
+  <main class="access-card">
+    <div class="brand access-brand"><span class="brand-mark" aria-hidden="true">≋</span><div><h1>STAFF MB</h1><p>Producción en vivo</p></div></div>
+    <form id="login-form" class="access-form">
+      <label class="field"><span>Código de acceso</span><input id="access-code" type="password" maxlength="128" autocomplete="one-time-code" required autofocus placeholder="•••• •••• ••••"></label>
+      <button class="primary" type="submit">ENTRAR</button>
+      <p class="access-error" id="access-error" role="alert" hidden></p>
+    </form>
+  </main>
+  <script src="/login.js"></script>
+</body>
+</html>

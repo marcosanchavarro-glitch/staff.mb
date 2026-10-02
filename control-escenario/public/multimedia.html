@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Multimedia · STAFF MB</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="operator-page">
+  <main class="operator-shell">
+    <header class="operator-header">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">≋</span><div><h1>STAFF MB</h1><p id="operator-name">Multimedia</p></div></div>
+      <div class="operator-header-actions"><span class="live-badge" id="operator-status">○ CONECTANDO</span><a class="nav-link" id="admin-link" href="/control" hidden>ADMIN</a><button id="operator-logout">SALIR</button></div>
+    </header>
+
+    <section class="operator-live-card">
+      <p class="live-session" id="operator-session">SIN CULTO ACTIVO</p>
+      <h2 id="operator-section">SIN SECCIÓN</h2>
+      <p class="responsible-line" id="operator-responsible">Encargado: —</p>
+      <p class="operator-timer" id="operator-timer">00:00</p>
+      <p class="eyebrow" id="operator-caption">TIEMPO TRANSCURRIDO</p>
+      <div class="operator-type-switch"><button id="type-stopwatch">CRONÓMETRO</button><button id="type-timer">TEMPORIZADOR</button></div>
+      <div class="operator-timer-actions"><button class="primary" id="operator-start">INICIAR</button><button id="operator-pause">PAUSAR</button><button class="primary" id="operator-resume">CONTINUAR</button><button id="operator-reset">REINICIAR</button></div>
+      <div class="operator-adjust" id="operator-adjust"><button id="operator-minus">−1 MIN</button><button id="operator-plus">+1 MIN</button></div>
+    </section>
+
+    <section class="operator-nav-card">
+      <div class="operator-nav-actions"><button id="operator-previous">← ANTERIOR</button><button class="primary" id="operator-next">SIGUIENTE →</button></div>
+      <div class="operator-next"><span class="eyebrow">PRÓXIMO</span><strong id="operator-next-section">FIN DE LA SESIÓN</strong><small id="operator-next-responsible">Sin próxima sección</small></div>
+      <button class="wide-button" id="operator-show-next">MOSTRAR PRÓXIMA</button>
+    </section>
+
+    <section class="operator-message-card">
+      <div class="panel-heading"><h2>MENSAJES RÁPIDOS</h2><span class="subtle" id="operator-current-message">SIN MENSAJE</span></div>
+      <div class="operator-quick-messages" id="operator-quick-messages"></div>
+      <form id="operator-message-form" class="operator-message-form">
+        <label class="field"><span>Mensaje personalizado</span><input id="operator-message" maxlength="160" autocomplete="off" placeholder="Mensaje al escenario"></label>
+        <label class="field color-field"><span>Color</span><input id="operator-message-color" type="color" value="#bbabef"></label>
+        <button class="primary" type="submit">ENVIAR</button>
+        <button id="operator-clear" type="button">BORRAR</button>
+      </form>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/multimedia.js"></script>
+</body>
+</html>
