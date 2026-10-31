@@ -85,7 +85,12 @@ function renderSessions() {
   }
 
   sessionSelect.value = String(selectedId);
-  sessionName.value = selectedSession()?.name ?? '';
+  const session = selectedSession();
+  sessionName.value = session?.name ?? '';
+  byId('session-automatic').checked = Boolean(session?.automaticMode);
+  byId('session-notice-seconds').value = String(session?.noticeSeconds ?? 20);
+  const totalMs = (session?.sections ?? []).reduce((sum, section) => sum + section.scheduleDurationSeconds * 1000, 0);
+  byId('session-total-duration').textContent = `DURACIÓN TOTAL · ${formatTime(totalMs)}`;
 }
 
 function renderSectionList() {
@@ -119,9 +124,10 @@ function renderSectionList() {
     const timeDescription = section.timerType === 'timer'
       ? `Temporizador · ${Math.round(section.durationSeconds / 60)} min`
       : 'Cronómetro';
+    const scheduleDescription = session.automaticMode ? ` · Cronograma ${Math.round(section.scheduleDurationSeconds / 60)} min` : '';
     meta.textContent = section.responsible
-      ? `${timeDescription} · Encargado: ${section.responsible}`
-      : timeDescription;
+      ? `${timeDescription}${scheduleDescription} · Encargado: ${section.responsible}`
+      : `${timeDescription}${scheduleDescription}`;
     text.append(name, meta);
     activate.append(number, text);
 
@@ -144,6 +150,7 @@ function resetSectionForm() {
   byId('section-name').value = '';
   byId('section-timer-type').value = 'stopwatch';
   byId('section-duration').value = '40';
+  byId('section-schedule-duration').value = '5';
   byId('section-color').value = config.displaySettings?.accentColor ?? '#bbabef';
   byId('section-responsible').value = '';
   byId('section-show-name').checked = true;
@@ -161,6 +168,7 @@ function fillSectionForm(section) {
   byId('section-name').value = section.name;
   byId('section-timer-type').value = section.timerType;
   byId('section-duration').value = String(Math.max(1, Math.round(section.durationSeconds / 60)));
+  byId('section-schedule-duration').value = String(Math.max(1, Math.round(section.scheduleDurationSeconds / 60)));
   byId('section-color').value = section.color;
   byId('section-responsible').value = section.responsible ?? '';
   byId('section-show-name').checked = section.showName;
@@ -176,6 +184,7 @@ function fillSectionForm(section) {
 
 function renderDurationField() {
   byId('duration-field').hidden = byId('section-timer-type').value !== 'timer';
+  byId('schedule-duration-field').hidden = !selectedSession()?.automaticMode;
 }
 
 function renderNoticeFields() {
@@ -268,6 +277,14 @@ function renderTimer(timer) {
   timerReset.disabled = !hasSection || (!timer.running && !timer.hasStarted);
 }
 
+function renderSchedule(schedule) {
+  byId('schedule-summary').hidden = !schedule?.enabled;
+  if (!schedule?.enabled) return;
+  byId('control-global-timer').textContent = formatTime(schedule.globalValueMs);
+  byId('control-section-remaining').textContent = formatTime(schedule.sectionRemainingMs);
+  byId('control-total-duration').textContent = formatTime(schedule.totalDurationMs);
+}
+
 function renderMessage(message) {
   const hasMessage = Boolean(message.text);
   currentMessage.textContent = hasMessage ? message.text : 'SIN MENSAJE ACTIVO';
@@ -291,6 +308,7 @@ function renderState(state) {
   byId('section-previous').disabled = !state.previousSection;
   byId('section-next').disabled = !state.nextSection;
   renderTimer(state.timer);
+  renderSchedule(state.schedule);
   renderMessage(state.message);
   renderSectionList();
 }
@@ -304,7 +322,10 @@ function renderConfig(nextConfig) {
 }
 
 sessionSelect.addEventListener('change', () => {
-  sessionName.value = selectedSession()?.name ?? '';
+  const session = selectedSession();
+  sessionName.value = session?.name ?? '';
+  byId('session-automatic').checked = Boolean(session?.automaticMode);
+  byId('session-notice-seconds').value = String(session?.noticeSeconds ?? 20);
   renderSectionList();
   resetSectionForm();
 });
@@ -328,6 +349,15 @@ byId('session-open').addEventListener('click', () => {
   const session = selectedSession();
   if (session) socket.emit('session:open', { id: session.id });
 });
+byId('session-settings-save').addEventListener('click', () => {
+  const session = selectedSession();
+  if (!session) return;
+  socket.emit('session:settings', {
+    id: session.id,
+    automaticMode: byId('session-automatic').checked,
+    noticeSeconds: Number(byId('session-notice-seconds').value)
+  });
+});
 
 byId('section-new').addEventListener('click', resetSectionForm);
 byId('section-cancel').addEventListener('click', resetSectionForm);
@@ -346,6 +376,7 @@ byId('section-form').addEventListener('submit', (event) => {
     name: byId('section-name').value,
     timerType: byId('section-timer-type').value,
     durationMinutes: Number(byId('section-duration').value),
+    scheduleDurationMinutes: Number(byId('section-schedule-duration').value),
     color: byId('section-color').value,
     responsible: byId('section-responsible').value,
     notifyNext: byId('section-notify-next').checked,

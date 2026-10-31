@@ -27,6 +27,12 @@
           <button id="session-rename">GUARDAR NOMBRE</button>
           <button class="danger-button" id="session-delete">ELIMINAR</button>
         </div>
+        <div class="schedule-settings">
+          <label><input id="session-automatic" type="checkbox"> Cronograma automático</label>
+          <label class="field"><span>Avisar próxima sección (segundos antes)</span><input id="session-notice-seconds" type="number" min="5" max="300" value="20"></label>
+          <button id="session-settings-save">GUARDAR MODO</button>
+          <span class="subtle" id="session-total-duration">DURACIÓN TOTAL · 00:00</span>
+        </div>
       </section>
 
       <div class="workspace">
@@ -36,6 +42,7 @@
           <p class="current-section" id="current-section" aria-live="polite">SIN SECCIÓN</p>
           <p class="responsible-line" id="current-responsible">Encargado: —</p>
           <div class="timer-block"><p class="timer" id="control-timer">00:00</p><p class="eyebrow" id="timer-caption">TIEMPO TRANSCURRIDO</p></div>
+          <div class="schedule-summary" id="schedule-summary" hidden><span>GLOBAL <strong id="control-global-timer">00:00</strong></span><span>RESTANTE <strong id="control-section-remaining">00:00</strong></span><span>TOTAL <strong id="control-total-duration">00:00</strong></span></div>
           <div class="timer-actions">
             <button class="primary" id="timer-start">INICIAR</button>
             <button id="timer-pause" disabled>PAUSAR</button>
@@ -69,6 +76,7 @@
           <label class="field"><span>Nombre</span><input id="section-name" maxlength="60" required placeholder="PRÉDICA"></label>
           <label class="field"><span>Tipo de tiempo</span><select id="section-timer-type"><option value="stopwatch">Cronómetro</option><option value="timer">Temporizador</option></select></label>
           <label class="field" id="duration-field"><span>Duración (minutos)</span><input id="section-duration" type="number" min="1" max="999" value="40"></label>
+          <label class="field" id="schedule-duration-field" hidden><span>Duración en cronograma (minutos)</span><input id="section-schedule-duration" type="number" min="1" max="999" value="5"></label>
           <label class="field color-field"><span>Color identificador</span><input id="section-color" type="color" value="#bbabef"></label>
           <label class="field"><span>Encargado (opcional)</span><input id="section-responsible" maxlength="60" placeholder="Marcos"></label>
           <div class="check-group">

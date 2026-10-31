@@ -9,10 +9,11 @@
 </head>
 <body class="stage-page" data-section-size="normal" data-timer-size="large">
   <main class="stage">
-    <header class="stage-header"><span class="stage-brand" id="stage-brand">STAFF MB</span><time class="real-time" id="real-time" datetime="">--:--</time></header>
+    <header class="stage-header"><span class="stage-brand" id="stage-brand">STAFF MB</span><strong class="stage-event" id="stage-event"></strong><time class="real-time" id="real-time" datetime="">--:--</time></header>
     <h1 class="stage-section" id="stage-section" aria-live="polite">ALABANZA</h1>
     <p class="stage-responsible" id="stage-responsible"></p>
     <div class="stage-clock" id="stage-clock"><p class="stage-timer" id="stage-timer">00:00</p><p class="eyebrow" id="stage-timer-caption">TIEMPO TRANSCURRIDO</p></div>
+    <div class="stage-schedule-metrics" id="stage-schedule-metrics" hidden><span>RESTANTE<strong id="stage-section-remaining">00:00</strong></span><span>GLOBAL<strong id="stage-global-time">00:00</strong></span><span>DURACIÓN TOTAL<strong id="stage-total-time">00:00</strong></span></div>
     <section class="stage-message" id="stage-message" aria-live="assertive" hidden><p id="stage-message-text"></p></section>
     <div class="stage-footer"><div class="stage-next" id="stage-next"><span>A CONTINUACIÓN</span><strong id="stage-next-section">—</strong><small id="stage-next-responsible"></small></div><p class="stage-preview" id="stage-status">○ CONECTANDO</p><button class="stage-logout" id="stage-logout">SALIR</button></div>
   </main>
@@ -21,6 +22,7 @@
       <p class="next-notice-label">A CONTINUACIÓN</p>
       <h2 id="next-notice-section"></h2>
       <p class="next-notice-responsible" id="next-notice-responsible"></p>
+      <p class="next-notice-countdown" id="next-notice-countdown"></p>
     </div>
   </section>
   <script src="/socket.io/socket.io.js"></script>

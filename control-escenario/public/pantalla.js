@@ -10,11 +10,17 @@ const stageResponsible = document.querySelector('#stage-responsible');
 const stageNext = document.querySelector('#stage-next');
 const stageNextSection = document.querySelector('#stage-next-section');
 const stageNextResponsible = document.querySelector('#stage-next-responsible');
+const stageEvent = document.querySelector('#stage-event');
+const stageScheduleMetrics = document.querySelector('#stage-schedule-metrics');
+const stageSectionRemaining = document.querySelector('#stage-section-remaining');
+const stageGlobalTime = document.querySelector('#stage-global-time');
+const stageTotalTime = document.querySelector('#stage-total-time');
 const stageMessage = document.querySelector('#stage-message');
 const stageMessageText = document.querySelector('#stage-message-text');
 const nextNotice = document.querySelector('#next-notice');
 const nextNoticeSection = document.querySelector('#next-notice-section');
 const nextNoticeResponsible = document.querySelector('#next-notice-responsible');
+const nextNoticeCountdown = document.querySelector('#next-notice-countdown');
 let renderedSectionId = null;
 let renderedMessageKey = '';
 let nextNoticeTimer = null;
@@ -97,12 +103,43 @@ function showNextNotice(notice) {
   nextNoticeResponsible.textContent = notice.responsible || '';
   nextNoticeResponsible.hidden = !notice.responsible;
   nextNotice.style.setProperty('--next-color', notice.color || 'var(--stage-accent)');
+  nextNotice.classList.remove('is-automatic', 'is-compact');
+  nextNoticeCountdown.textContent = '';
   nextNotice.hidden = false;
   nextNotice.classList.remove('is-visible');
   void nextNotice.offsetWidth;
   nextNotice.classList.add('is-visible');
   const durationMs = Math.min(8000, Math.max(5000, Number(notice.durationMs) || 6500));
   nextNoticeTimer = window.setTimeout(() => hideNextNotice(), durationMs);
+}
+
+function renderSchedule(schedule, session) {
+  const automatic = Boolean(schedule?.enabled);
+  stageEvent.hidden = !automatic;
+  stageEvent.textContent = automatic ? session?.name ?? '' : '';
+  stageScheduleMetrics.hidden = !automatic;
+  if (!automatic) return;
+  stageTimer.textContent = formatTime(schedule.sectionElapsedMs);
+  stageTimerCaption.textContent = 'TIEMPO DE SECCIÓN';
+  stageSectionRemaining.textContent = formatTime(schedule.sectionRemainingMs);
+  stageGlobalTime.textContent = formatTime(schedule.globalValueMs);
+  stageTotalTime.textContent = formatTime(schedule.totalDurationMs);
+
+  const notice = schedule.notice;
+  if (!notice) {
+    if (nextNotice.classList.contains('is-automatic')) hideNextNotice(true);
+    return;
+  }
+  window.clearTimeout(nextNoticeTimer);
+  window.clearTimeout(nextNoticeExitTimer);
+  nextNoticeSection.textContent = notice.sectionName;
+  nextNoticeResponsible.textContent = notice.responsible || 'Sin asignar';
+  nextNoticeResponsible.hidden = false;
+  nextNoticeCountdown.textContent = `EN ${formatTime(notice.remainingMs)}`;
+  nextNotice.style.setProperty('--next-color', notice.color || 'var(--stage-accent)');
+  nextNotice.hidden = false;
+  nextNotice.classList.add('is-visible', 'is-automatic');
+  nextNotice.classList.toggle('is-compact', notice.phase === 'compact');
 }
 
 function renderTimer(timer) {
@@ -140,11 +177,12 @@ socket.on('disconnect', () => {
   stageStatus.textContent = '○ SIN CONEXIÓN';
   stageStatus.classList.add('is-offline');
 });
-socket.on('state:update', ({ currentSection, nextSection, timer, message, displaySettings }) => {
+socket.on('state:update', ({ currentSession, currentSection, nextSection, timer, schedule, message, displaySettings }) => {
   renderDisplaySettings(displaySettings, currentSection);
   renderSection(currentSection);
   renderMeetingDetails(currentSection, nextSection);
   renderTimer(timer);
+  renderSchedule(schedule, currentSession);
   renderMessage(message);
 });
 socket.on('next-section:show', showNextNotice);

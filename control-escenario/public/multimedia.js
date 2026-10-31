@@ -16,8 +16,16 @@ function renderState(state) {
   $('operator-responsible').textContent = `Encargado: ${section?.responsible || 'Sin asignar'}`;
   $('operator-timer').textContent = formatTime(state.timer.valueMs);
   $('operator-caption').textContent = state.timer.type === 'timer' ? 'TIEMPO RESTANTE' : 'TIEMPO TRANSCURRIDO';
+  const automatic = Boolean(state.schedule?.enabled);
+  $('operator-schedule-summary').hidden = !automatic;
+  if (automatic) {
+    $('operator-global').textContent = formatTime(state.schedule.globalValueMs);
+    $('operator-remaining').textContent = formatTime(state.schedule.sectionRemainingMs);
+    $('operator-total').textContent = formatTime(state.schedule.totalDurationMs);
+  }
   $('type-stopwatch').classList.toggle('is-active', state.timer.type === 'stopwatch');
   $('type-timer').classList.toggle('is-active', state.timer.type === 'timer');
+  $('type-stopwatch').parentElement.hidden = automatic;
   $('operator-adjust').hidden = state.timer.type !== 'timer';
   $('operator-start').disabled = !section || state.timer.running || state.timer.hasStarted;
   $('operator-pause').disabled = !state.timer.running;

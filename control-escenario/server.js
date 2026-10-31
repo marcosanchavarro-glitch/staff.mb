@@ -99,14 +99,33 @@ function ensureColumn(table, column, definition) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some((item) => item.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    return true;
   }
+  return false;
 }
 
 ensureColumn('sections', 'responsible', "TEXT NOT NULL DEFAULT ''");
 ensureColumn('sections', 'notify_next', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('sections', 'notify_minutes', 'INTEGER NOT NULL DEFAULT 0');
+const addedScheduleDuration = ensureColumn(
+  'sections',
+  'schedule_duration_seconds',
+  'INTEGER NOT NULL DEFAULT 300'
+);
+if (addedScheduleDuration) {
+  db.exec(`
+    UPDATE sections
+    SET schedule_duration_seconds = CASE
+      WHEN duration_seconds > 0 THEN duration_seconds
+      ELSE 300
+    END
+  `);
+}
+ensureColumn('sessions', 'automatic_mode', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('sessions', 'notice_seconds', 'INTEGER NOT NULL DEFAULT 20');
 ensureColumn('app_state', 'next_notice_shown', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('app_state', 'timer_type_override', 'TEXT');
+ensureColumn('app_state', 'global_timer_value_ms', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('display_settings', 'message_size', "TEXT NOT NULL DEFAULT 'large'");
 ensureColumn('display_settings', 'show_responsible', 'INTEGER NOT NULL DEFAULT 1');
 ensureColumn('display_settings', 'show_next_section', 'INTEGER NOT NULL DEFAULT 1');
@@ -308,6 +327,7 @@ function mapSection(row) {
     name: row.name,
     timerType: row.timerType,
     durationSeconds: Number(row.durationSeconds),
+    scheduleDurationSeconds: Number(row.scheduleDurationSeconds),
     color: row.color,
     showName: Boolean(row.showName),
     showTime: Boolean(row.showTime),
@@ -321,7 +341,8 @@ function mapSection(row) {
 
 const sectionSelect = `
   SELECT id, session_id AS sessionId, name, timer_type AS timerType,
-    duration_seconds AS durationSeconds, color, show_name AS showName,
+    duration_seconds AS durationSeconds, schedule_duration_seconds AS scheduleDurationSeconds,
+    color, show_name AS showName,
     show_time AS showTime, show_clock AS showClock, responsible,
     notify_next AS notifyNext, notify_minutes AS notifyMinutes, position
   FROM sections
@@ -336,9 +357,11 @@ function getSections(sessionId) {
 }
 
 function getSessions() {
-  return db.prepare('SELECT id, name FROM sessions ORDER BY id').all().map((session) => ({
+  return db.prepare('SELECT id, name, automatic_mode AS automaticMode, notice_seconds AS noticeSeconds FROM sessions ORDER BY id').all().map((session) => ({
     id: Number(session.id),
     name: session.name,
+    automaticMode: Boolean(session.automaticMode),
+    noticeSeconds: Number(session.noticeSeconds),
     sections: getSections(session.id)
   }));
 }
@@ -383,6 +406,7 @@ function loadRuntimeState() {
     SELECT current_session_id AS currentSessionId, current_section_id AS currentSectionId,
       timer_running AS timerRunning, timer_has_started AS timerHasStarted,
       timer_value_ms AS timerValueMs, timer_started_at AS timerStartedAt,
+      global_timer_value_ms AS globalTimerValueMs,
       message_text AS messageText, message_color AS messageColor,
       next_notice_shown AS nextNoticeShown, timer_type_override AS timerTypeOverride
     FROM app_state WHERE id = 1
@@ -396,6 +420,7 @@ function loadRuntimeState() {
       valueMs: Number(row.timerValueMs),
       startedAt: row.timerStartedAt == null ? null : Number(row.timerStartedAt)
     },
+    globalTimerValueMs: Number(row.globalTimerValueMs),
     message: {
       text: row.messageText,
       color: row.messageColor
@@ -410,8 +435,10 @@ let timerInterval = null;
 
 function getCurrentSession() {
   if (runtime.currentSessionId == null) return null;
-  const row = db.prepare('SELECT id, name FROM sessions WHERE id = ?').get(runtime.currentSessionId);
-  return row ? { id: Number(row.id), name: row.name } : null;
+  const row = db.prepare('SELECT id, name, automatic_mode AS automaticMode, notice_seconds AS noticeSeconds FROM sessions WHERE id = ?').get(runtime.currentSessionId);
+  return row ? {
+    id: Number(row.id), name: row.name, automaticMode: Boolean(row.automaticMode), noticeSeconds: Number(row.noticeSeconds)
+  } : null;
 }
 
 function getCurrentSection() {
@@ -440,7 +467,8 @@ function persistRuntime() {
     UPDATE app_state SET
       current_session_id = ?, current_section_id = ?, timer_running = ?,
       timer_has_started = ?, timer_value_ms = ?, timer_started_at = ?,
-      message_text = ?, message_color = ?, next_notice_shown = ?, timer_type_override = ?
+      global_timer_value_ms = ?, message_text = ?, message_color = ?,
+      next_notice_shown = ?, timer_type_override = ?
     WHERE id = 1
   `).run(
     runtime.currentSessionId,
@@ -449,6 +477,7 @@ function persistRuntime() {
     Number(runtime.timer.hasStarted),
     Math.max(0, Math.round(runtime.timer.valueMs)),
     runtime.timer.startedAt,
+    Math.max(0, Math.round(runtime.globalTimerValueMs)),
     runtime.message.text,
     runtime.message.color,
     Number(runtime.nextNoticeShown),
@@ -457,6 +486,7 @@ function persistRuntime() {
 }
 
 function getTimerType() {
+  if (getCurrentSession()?.automaticMode) return 'stopwatch';
   return runtime.timerTypeOverride ?? getCurrentSection()?.timerType ?? 'stopwatch';
 }
 
@@ -468,6 +498,12 @@ function getTimerValue() {
     : runtime.timer.valueMs + delta;
 }
 
+function getGlobalTimerValue(now = Date.now()) {
+  if (!getCurrentSession()?.automaticMode) return 0;
+  if (!runtime.timer.running) return Math.max(0, runtime.globalTimerValueMs);
+  return runtime.globalTimerValueMs + (now - runtime.timer.startedAt);
+}
+
 function resetTimerForCurrentSection(shouldPersist = true) {
   stopTimerUpdates();
   const section = getCurrentSection();
@@ -475,16 +511,22 @@ function resetTimerForCurrentSection(shouldPersist = true) {
   runtime.timer.hasStarted = false;
   runtime.timer.startedAt = null;
   runtime.nextNoticeShown = false;
-  runtime.timer.valueMs = getTimerType() === 'timer' ? (section?.durationSeconds ?? 0) * 1000 : 0;
+  runtime.timer.valueMs = getCurrentSession()?.automaticMode
+    ? 0
+    : getTimerType() === 'timer' ? (section?.durationSeconds ?? 0) * 1000 : 0;
+  runtime.globalTimerValueMs = 0;
   if (shouldPersist) persistRuntime();
 }
 
 function freezeTimer() {
+  const now = Date.now();
+  if (getCurrentSession()?.automaticMode) runtime.globalTimerValueMs = getGlobalTimerValue(now);
   runtime.timer.valueMs = getTimerValue();
   runtime.timer.startedAt = null;
 }
 
 function settleFinishedTimer() {
+  if (getCurrentSession()?.automaticMode) return false;
   if (!runtime.timer.running || getTimerType() !== 'timer' || getTimerValue() > 0) return false;
   runtime.timer.valueMs = 0;
   runtime.timer.running = false;
@@ -493,6 +535,45 @@ function settleFinishedTimer() {
   stopTimerUpdates();
   persistRuntime();
   return true;
+}
+
+function advanceAutomaticSchedule(now = Date.now()) {
+  const session = getCurrentSession();
+  if (!session?.automaticMode || !runtime.timer.running) return false;
+  const sections = getSections(session.id);
+  let index = sections.findIndex((item) => item.id === runtime.currentSectionId);
+  if (index < 0) return false;
+  const delta = now - runtime.timer.startedAt;
+  let sectionElapsed = runtime.timer.valueMs + delta;
+  const globalElapsed = runtime.globalTimerValueMs + delta;
+  let changed = false;
+
+  while (index < sections.length) {
+    const durationMs = Math.max(1000, sections[index].scheduleDurationSeconds * 1000);
+    if (sectionElapsed < durationMs) break;
+    if (index === sections.length - 1) {
+      runtime.timer.valueMs = durationMs;
+      runtime.globalTimerValueMs = sections.reduce((sum, item) => sum + item.scheduleDurationSeconds * 1000, 0);
+      runtime.timer.running = false;
+      runtime.timer.startedAt = null;
+      stopTimerUpdates();
+      persistRuntime();
+      return true;
+    }
+    sectionElapsed -= durationMs;
+    index += 1;
+    runtime.currentSectionId = sections[index].id;
+    runtime.nextNoticeShown = false;
+    changed = true;
+  }
+
+  if (changed) {
+    runtime.timer.valueMs = sectionElapsed;
+    runtime.globalTimerValueMs = globalElapsed;
+    runtime.timer.startedAt = now;
+    persistRuntime();
+  }
+  return changed;
 }
 
 function getMeetingContext() {
@@ -505,11 +586,22 @@ function getMeetingContext() {
 }
 
 function getPublicState() {
+  advanceAutomaticSchedule();
   settleFinishedTimer();
+  const session = getCurrentSession();
   const section = getCurrentSection();
   const meeting = getMeetingContext();
+  const sectionElapsedMs = getTimerValue();
+  const sectionDurationMs = (section?.scheduleDurationSeconds ?? 0) * 1000;
+  const globalValueMs = getGlobalTimerValue();
+  const totalDurationMs = session?.automaticMode
+    ? getSections(session.id).reduce((sum, item) => sum + item.scheduleDurationSeconds * 1000, 0)
+    : 0;
+  const sectionRemainingMs = Math.max(0, sectionDurationMs - sectionElapsedMs);
+  const noticeActive = Boolean(session?.automaticMode && meeting.nextSection && runtime.timer.hasStarted &&
+    sectionRemainingMs > 0 && sectionRemainingMs <= session.noticeSeconds * 1000);
   return {
-    currentSession: getCurrentSession(),
+    currentSession: session,
     currentSection: section,
     previousSection: meeting.previousSection,
     nextSection: meeting.nextSection,
@@ -519,6 +611,20 @@ function getPublicState() {
       type: getTimerType(),
       valueMs: getTimerValue(),
       durationMs: (section?.durationSeconds ?? 0) * 1000
+    },
+    schedule: {
+      enabled: Boolean(session?.automaticMode),
+      sectionElapsedMs,
+      sectionRemainingMs,
+      globalValueMs,
+      totalDurationMs,
+      notice: noticeActive ? {
+        phase: session.noticeSeconds * 1000 - sectionRemainingMs < 5000 ? 'full' : 'compact',
+        remainingMs: sectionRemainingMs,
+        sectionName: meeting.nextSection.name,
+        responsible: meeting.nextSection.responsible,
+        color: meeting.nextSection.color
+      } : null
     },
     message: { ...runtime.message },
     displaySettings: getDisplaySettings()
@@ -538,6 +644,7 @@ function getNextNotice() {
 }
 
 function maybeShowNextNotice() {
+  if (getCurrentSession()?.automaticMode) return;
   const section = getCurrentSection();
   const notice = getNextNotice();
   if (!runtime.timer.running || runtime.nextNoticeShown || !notice) return;
@@ -643,10 +750,12 @@ function normalizeSectionPayload(payload) {
   const name = normalizeText(payload?.name, 60);
   const timerType = timerTypes.has(payload?.timerType) ? payload.timerType : 'stopwatch';
   const durationMinutes = Math.max(1, Math.min(999, Number(payload?.durationMinutes) || 1));
+  const scheduleDurationMinutes = Math.max(1, Math.min(999, Number(payload?.scheduleDurationMinutes) || durationMinutes));
   return {
     name,
     timerType,
     durationSeconds: timerType === 'timer' ? Math.round(durationMinutes * 60) : 0,
+    scheduleDurationSeconds: Math.round(scheduleDurationMinutes * 60),
     color: normalizeColor(payload?.color),
     showName: Number(Boolean(payload?.showName)),
     showTime: Number(Boolean(payload?.showTime)),
@@ -789,6 +898,23 @@ io.on('connection', (socket) => {
     broadcastState();
   });
 
+  onSocket(socket, 'session:settings', ['admin'], (payload) => {
+    const id = Number(payload?.id);
+    const session = db.prepare('SELECT id FROM sessions WHERE id = ?').get(id);
+    if (!session) return;
+    const automaticMode = Number(Boolean(payload?.automaticMode));
+    const noticeSeconds = Math.max(5, Math.min(300, Math.round(Number(payload?.noticeSeconds) || 20)));
+    db.prepare('UPDATE sessions SET automatic_mode = ?, notice_seconds = ? WHERE id = ?')
+      .run(automaticMode, noticeSeconds, id);
+    if (runtime.currentSessionId === id) {
+      runtime.currentSectionId = getSections(id)[0]?.id ?? null;
+      runtime.timerTypeOverride = null;
+      resetTimerForCurrentSection();
+    }
+    broadcastConfig();
+    broadcastState();
+  });
+
   onSocket(socket, 'session:delete', ['admin'], (payload) => {
     const id = Number(payload?.id);
     if (!id) return;
@@ -824,9 +950,9 @@ io.on('connection', (socket) => {
     const result = db.prepare(`
       INSERT INTO sections
         (session_id, name, timer_type, duration_seconds, color, show_name, show_time,
-          show_clock, responsible, notify_next, notify_minutes, position)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(sessionId, section.name, section.timerType, section.durationSeconds, section.color, section.showName, section.showTime, section.showClock, section.responsible, section.notifyNext, section.notifyMinutes, position);
+          show_clock, responsible, notify_next, notify_minutes, schedule_duration_seconds, position)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(sessionId, section.name, section.timerType, section.durationSeconds, section.color, section.showName, section.showTime, section.showClock, section.responsible, section.notifyNext, section.notifyMinutes, section.scheduleDurationSeconds, position);
     if (runtime.currentSessionId === sessionId && runtime.currentSectionId == null) {
       runtime.currentSectionId = Number(result.lastInsertRowid);
       resetTimerForCurrentSection();
@@ -843,9 +969,9 @@ io.on('connection', (socket) => {
     db.prepare(`
       UPDATE sections SET name = ?, timer_type = ?, duration_seconds = ?, color = ?,
         show_name = ?, show_time = ?, show_clock = ?, responsible = ?,
-        notify_next = ?, notify_minutes = ? WHERE id = ?
-    `).run(section.name, section.timerType, section.durationSeconds, section.color, section.showName, section.showTime, section.showClock, section.responsible, section.notifyNext, section.notifyMinutes, id);
-    if (runtime.currentSectionId === id && (previous.timerType !== section.timerType || previous.durationSeconds !== section.durationSeconds)) {
+        notify_next = ?, notify_minutes = ?, schedule_duration_seconds = ? WHERE id = ?
+    `).run(section.name, section.timerType, section.durationSeconds, section.color, section.showName, section.showTime, section.showClock, section.responsible, section.notifyNext, section.notifyMinutes, section.scheduleDurationSeconds, id);
+    if (runtime.currentSectionId === id && (previous.timerType !== section.timerType || previous.durationSeconds !== section.durationSeconds || previous.scheduleDurationSeconds !== section.scheduleDurationSeconds)) {
       runtime.timerTypeOverride = null;
       resetTimerForCurrentSection();
     }
@@ -899,6 +1025,11 @@ io.on('connection', (socket) => {
 
   onSocket(socket, 'timer:start', ['admin', 'multimedia'], () => {
     if (!getCurrentSection() || runtime.timer.running || runtime.timer.hasStarted) return;
+    if (getCurrentSession()?.automaticMode) {
+      runtime.currentSectionId = getSections(runtime.currentSessionId)[0]?.id ?? null;
+      runtime.timer.valueMs = 0;
+      runtime.globalTimerValueMs = 0;
+    }
     if (getTimerType() === 'timer' && runtime.timer.valueMs <= 0) resetTimerForCurrentSection(false);
     runtime.timer.running = true;
     runtime.timer.hasStarted = true;
@@ -928,11 +1059,15 @@ io.on('connection', (socket) => {
   });
 
   onSocket(socket, 'timer:reset', ['admin', 'multimedia'], () => {
+    if (getCurrentSession()?.automaticMode) {
+      runtime.currentSectionId = getSections(runtime.currentSessionId)[0]?.id ?? null;
+    }
     resetTimerForCurrentSection();
     broadcastState();
   });
 
   onSocket(socket, 'timer:adjust', ['admin', 'multimedia'], (payload) => {
+    if (getCurrentSession()?.automaticMode) return;
     if (getTimerType() !== 'timer') return;
     const minutes = payload?.minutes === 1 ? 1 : payload?.minutes === -1 ? -1 : 0;
     if (!minutes) return;
@@ -947,6 +1082,7 @@ io.on('connection', (socket) => {
   });
 
   onSocket(socket, 'timer:type:set', ['admin', 'multimedia'], (payload) => {
+    if (getCurrentSession()?.automaticMode) return;
     const type = timerTypes.has(payload?.type) ? payload.type : null;
     if (!type || !getCurrentSection() || type === getTimerType()) return;
     runtime.timerTypeOverride = type === getCurrentSection().timerType ? null : type;
